@@ -328,9 +328,7 @@ static void msm_restart_prepare(const char *cmd)
 #endif
 
 #ifdef CONFIG_MACH_LGE
-	/* set warm reset only when panic in progress */
-	if (in_panic)
-		need_warm_reset = true;
+	need_warm_reset = true;
 #else
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode */
