@@ -2470,15 +2470,13 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 		return 0;
 	cid = fl->cid;
 
+	(void)fastrpc_release_current_dsp_process(fl);
+
 	spin_lock(&fl->apps->hlock);
 	hlist_del_init(&fl->hn);
 	spin_unlock(&fl->apps->hlock);
 	kfree(fl->debug_buf);
 
-	if (!fl->sctx) {
-		goto bail;
-	}
-	(void)fastrpc_release_current_dsp_process(fl);
 	if (!fl->sctx)
 		goto bail;
 
@@ -2943,7 +2941,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	if (err)
 		return err;
 	snprintf(strpid, PID_SIZE, "%d", current->pid);
-	buf_size = strlen(current->comm) + strlen(strpid) + 1;
+	buf_size = strlen(current->comm) + strlen("_") + strlen(strpid) + 1;
 	fl->debug_buf = kzalloc(buf_size, GFP_KERNEL);
 	snprintf(fl->debug_buf, UL_SIZE, "%.10s%s%d",
 	current->comm, "_", current->pid);

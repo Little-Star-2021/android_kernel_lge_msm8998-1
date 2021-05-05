@@ -514,6 +514,11 @@ static int __read_queue(struct vidc_iface_q_info *qinfo, u8 *packet,
 
 	if (read_idx == write_idx) {
 		queue->qhdr_rx_req = receive_request;
+		/*
+		* mb() to ensure qhdr is updated in main memory
+		* so that venus reads the updated header values
+		*/
+		mb();
 		*pb_tx_req_is_set = 0;
 		dprintk(VIDC_DBG,
 			"%s queue is empty, rx_req = %u, tx_req = %u, read_idx = %u\n",
@@ -566,6 +571,13 @@ static int __read_queue(struct vidc_iface_q_info *qinfo, u8 *packet,
 		queue->qhdr_rx_req = 0;
 	else
 		queue->qhdr_rx_req = receive_request;
+	/*
+	* mb() to ensure qhdr is updated in main memory
+	* so that venus reads the updated header values
+	*/
+	mb();
+
+	queue->qhdr_read_idx = new_read_idx;
 
 	queue->qhdr_read_idx = new_read_idx;
 
@@ -3397,7 +3409,6 @@ exit:
 static void __process_sys_error(struct venus_hfi_device *device)
 {
 	struct hfi_sfr_struct *vsfr = NULL;
-
 
 	/* Once SYS_ERROR received from HW, it is safe to halt the AXI.
 	 * With SYS_ERROR, Venus FW may have crashed and HW might be
