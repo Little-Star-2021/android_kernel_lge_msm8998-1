@@ -9,41 +9,21 @@ obj-vdso-s := note.o sigreturn.o
 obj-vdso-c := vgettimeofday.o
 
 # Build rules
-targets := $(obj-vdso) vdso.so vdso.so.dbg
-obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
+targets := $(obj-vdso-s) $(obj-vdso-c) vdso.so vdso.so.dbg
+obj-vdso-s := $(addprefix $(obj)/, $(obj-vdso-s))
+obj-vdso-c := $(addprefix $(obj)/, $(obj-vdso-c))
+obj-vdso   := $(obj-vdso-c) $(obj-vdso-s)
 
-ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 --hash-style=sysv \
-		--build-id -n -T
-ccflags-y += $(DISABLE_LTO)
+ccflags-y := -shared -fno-common -fno-builtin -fno-stack-protector
+ccflags-y += -DDISABLE_BRANCH_PROFILING -ffixed-x18
+ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 \
+		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
-ccflags-y := -fno-common -fno-builtin -fno-stack-protector -ffixed-x18
-ccflags-y += -DDISABLE_BRANCH_PROFILING
-
-VDSO_LDFLAGS := -Bsymbolic
-
-CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os $(CC_FLAGS_SCS)
-KBUILD_CFLAGS			+= $(DISABLE_LTO)
-KASAN_SANITIZE			:= n
-UBSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
-KCOV_INSTRUMENT			:= n
-
-ifeq ($(cc-name),clang)
-CFLAGS_vgettimeofday.o = -O3
-else
-CFLAGS_vgettimeofday.o = -O2
-endif
-CFLAGS_vgettimeofday.o = -mcmodel=tiny
-
-ifneq ($(c-gettimeofday-y),)
-  CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)
-endif
-
-# Clang versions less than 8 do not support -mcmodel=tiny
-ifeq ($(CONFIG_CC_IS_CLANG), y)
-  ifeq ($(shell test $(CONFIG_CLANG_VERSION) -lt 80000; echo $$?),0)
-    CFLAGS_REMOVE_vgettimeofday.o += -mcmodel=tiny
-  endif
+# Force -O2 to avoid libgcc dependencies
+CFLAGS_REMOVE_vgettimeofday.o = -pg -Os
+CFLAGS_vgettimeofday.o = -O2 -fPIC
+ifneq ($(cc-name),clang)
+CFLAGS_vgettimeofday.o += -mcmodel=tiny
 endif
 
 # Disable gcov profiling for VDSO code
